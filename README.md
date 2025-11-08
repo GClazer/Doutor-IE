@@ -1,59 +1,141 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## Doutorie API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicação Laravel responsável pelo cadastro de livros, seus índices e subíndices, além da importação/exportação da estrutura em XML. Este resumo reúne os principais fluxos, rotas e processos necessários para colocar o projeto em funcionamento.
 
-## About Laravel
+### Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+-   PHP 8.2+
+-   Laravel 11
+-   MySQL 8.x
+-   Redis ou outro driver suportado para filas (opcional, mas recomendado)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Setup Rápido
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Instalar dependências**
+    ```bash
+    composer install
+    ```
+2. **Configurar variáveis de ambiente**
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+    Ajuste conexões de banco, filas e storage.
+3. **Executar migrações**
+    ```bash
+    php artisan migrate
+    ```
+4. **Configurar storage público**
+    ```bash
+    php artisan storage:link
+    ```
+5. **Rodar servidor e filas**
+    ```bash
+    php artisan serve         # API
+    php artisan queue:work    # processamento de jobs
+    ```
+6. **Rodar as Seeders**
+    ```bash
+    php artisan db:seed
+    ```
 
-## Learning Laravel
+### Autenticação
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+-   `POST /api/v1/auth/token`  
+    Recebe credenciais e retorna token Sanctum. Envie o token no header `Authorization: Bearer {token}` para as rotas protegidas.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Rotas Principais
 
-## Laravel Sponsors
+-   `GET /api/v1/livros`  
+    Lista livros com filtros opcionais `?titulo=` e `?titulo_do_indice=`. Retorna `titulo`, `usuario_publicador` e a árvore completa de índices/subíndices.
+-   `POST /api/v1/livros`  
+    Cria um livro com índices informados em JSON. Requer campos `titulo`, `pagina` e permite recursão de `subindices`.
+-   `POST /api/v1/livros/{livro}/importar-indices-xml`  
+    Recebe um arquivo XML com a estrutura de índices e dispara o job `ProcessBookXML`.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Estrutura JSON de Livro
 
-### Premium Partners
+```json
+{
+    "titulo": "Livro Exemplo",
+    "usuario_publicador": {
+        "id": 1,
+        "name": "Editor"
+    },
+    "indices": [
+        {
+            "titulo": "Seção 1",
+            "pagina": 1,
+            "subindices": [
+                {
+                    "titulo": "Seção 1.1",
+                    "pagina": 1,
+                    "subindices": [
+                        { "titulo": "Seção 1.1.1", "pagina": 1 },
+                        { "titulo": "Seção 1.1.2", "pagina": 1 }
+                    ]
+                },
+                { "titulo": "Seção 1.2", "pagina": 2 }
+            ]
+        },
+        { "titulo": "Seção 2", "pagina": 2 },
+        { "titulo": "Seção 3", "pagina": 3 }
+    ]
+}
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Importação de XML
 
-## Contributing
+**Formato esperado**
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```xml
+<indice>
+    <item pagina="1" titulo="Seção 1">
+        <item pagina="1" titulo="Seção 1.1">
+            <item pagina="1" titulo="Seção 1.1.1" />
+            <item pagina="1" titulo="Seção 1.1.2" />
+        </item>
+        <item pagina="2" titulo="Seção 1.2" />
+    </item>
+    <item pagina="2" titulo="Seção 2" />
+    <item pagina="3" titulo="Seção 3" />
+</indice>
+```
 
-## Code of Conduct
+**Fluxo**
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. Envie o XML via multipart/form-data para `POST /api/v1/livros/{id}/importar-indices-xml`.
+2. O controller despacha `ProcessBookXML`, que:
+    - Recarrega o livro e seus índices.
+    - Percorre todos os níveis de subíndices.
+    - Gera um XML formatado com `<item pagina="" titulo="">`.
+    - Salva o resultado em `storage/app/public/books/book_{id}.xml`.
+3. Os arquivos ficam acessíveis após executar `php artisan storage:link`.
 
-## Security Vulnerabilities
+### Exportação Gerada
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Exemplo de saída produzida pelo job:
 
-## License
+```xml
+<?xml version="1.0"?>
+<indice>
+  <item pagina="1" titulo="Seção 1">
+    <item pagina="1" titulo="Seção 1.1">
+      <item pagina="1" titulo="Seção 1.1.1"/>
+      <item pagina="1" titulo="Seção 1.1.2"/>
+    </item>
+    <item pagina="2" titulo="Seção 1.2"/>
+  </item>
+  <item pagina="2" titulo="Seção 2"/>
+  <item pagina="3" titulo="Seção 3"/>
+</indice>
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Testes
+
+-   Utilize `php artisan test` para executar os testes automatizados (se existentes).
+-   Recomenda-se criar testes de feature para importação/exportação conforme a necessidade do projeto.
+
+### Dúvidas
+
+Abra uma issue ou converse com o time responsável para esclarecer dúvidas sobre índices, estrutura do XML ou integração com o job de processamento.
