@@ -7,7 +7,6 @@ Aplicação Laravel responsável pelo cadastro de livros, seus índices e subín
 -   PHP 8.2+
 -   Laravel 11
 -   MySQL 8.x
--   Redis ou outro driver suportado para filas (opcional, mas recomendado)
 
 ### Setup Rápido
 
