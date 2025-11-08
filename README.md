@@ -5,7 +5,7 @@ Aplicação Laravel responsável pelo cadastro de livros, seus índices e subín
 ### Stack
 
 -   PHP 8.2+
--   Laravel 11
+-   Laravel 12
 -   MySQL 8.x
 
 ### Setup Rápido
