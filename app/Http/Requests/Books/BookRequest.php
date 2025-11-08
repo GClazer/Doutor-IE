@@ -42,7 +42,6 @@ class BookRequest extends FormRequest
             $currentPath = "{$path}.{$key}";
             $rules["{$currentPath}.titulo"] = ['required', 'string', 'max:255'];
             $rules["{$currentPath}.pagina"] = ['required', 'integer'];
-            $rules["{$currentPath}.indice_pai_id"] = ['nullable', 'exists:book_indexes,id'];
 
             $subindices = $index['subindices'] ?? [];
 
